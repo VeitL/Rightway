@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<document type="com.apple.xcode.coredata.xcdatamodeld" version="1.0" metadata="{\n    \"NSManagedObjectModel_CurrentVersionName\" = Entities;\n}">
+    <model name="Entities"/>
+</document>

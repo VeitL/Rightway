@@ -1,0 +1,28 @@
+# Xcode
+DerivedData/
+xcuserdata/
+*.xcuserstate
+*.xcworkspace/xcuserdata
+
+# Build artifacts
+build/
+Build/
+*.ipa
+*.dSYM
+
+# Swift Package Manager
+.swiftpm/
+.build/
+
+# CocoaPods / Carthage (if used later)
+Pods/
+Carthage/
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+
+# Temporary media generated during practice sessions
+RightwayApp/MediaCache/

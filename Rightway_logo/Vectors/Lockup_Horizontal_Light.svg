@@ -1,0 +1,13 @@
+<svg width="2200" height="700" viewBox="0 0 2200 700" xmlns="http://www.w3.org/2000/svg">
+<rect width="2200" height="700" fill="#FFFFFF"/>
+<g transform="translate(132,98)">
+  <rect x="90.72" y="90.72" width="60.48" height="322.56" rx="30.24" ry="30.24" fill="#111111"/>
+  <circle cx="262.08" cy="201.60000000000002" r="100.80000000000001" fill="#111111"/>
+  <circle cx="262.08" cy="201.60000000000002" r="62.49600000000001" fill="#FFFFFF"/>
+  <polygon points="315.0,201.60000000000002 209.15999999999997,161.28000000000003 209.15999999999997,241.92000000000002" fill="#FFFFFF"/>
+  <circle cx="322.56" cy="292.32000000000005" r="17.64" fill="#0A84FF"/>
+</g>
+<text x="706" y="455" font-family="Inter, -apple-system, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif" font-size="280" fill="#111111" font-weight="700">RIGHTWAY</text>
+<!-- Wordmark blue dot at end -->
+<circle cx="2081.0" cy="350" r="17.64" fill="#0A84FF"/>
+</svg>

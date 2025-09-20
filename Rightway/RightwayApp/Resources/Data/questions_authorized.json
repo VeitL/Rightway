@@ -1,0 +1,96 @@
+{
+  "questions": [
+    {
+      "id": "1.1.02-001",
+      "chapter": "Vorfahrt",
+      "points": 5,
+      "stem": {
+        "de": "Wie verhalten Sie sich auf diesem Bild?",
+        "en": "How should you behave in this situation?",
+        "zhHans": "在此场景下你应如何应对？"
+      },
+      "options": [
+        {
+          "text": {
+            "de": "Ich halte an und gewähre Vorfahrt.",
+            "en": "Stop and yield the right of way.",
+            "zhHans": "停车并礼让。"
+          },
+          "isCorrect": true
+        },
+        {
+          "text": {
+            "de": "Ich fahre sofort weiter.",
+            "en": "Continue driving immediately.",
+            "zhHans": "立刻继续行驶。"
+          },
+          "isCorrect": false
+        }
+      ],
+      "explanation": {
+        "headline": "注意三角形让行标志",
+        "body": "前方有让行标志时必须减速并在必要时停车，确保主路车辆先行。",
+        "tips": [
+          "先观察直行车辆",
+          "落点：让行标志=三角形"
+        ]
+      },
+      "metadata": {
+        "type": "singleChoice",
+        "difficulty": 2,
+        "tags": ["priority", "intersection"],
+        "lastUpdated": "2025-05-02T12:00:00Z"
+      }
+    },
+    {
+      "id": "1.1.03-104",
+      "chapter": "Geschwindigkeit",
+      "points": 4,
+      "stem": {
+        "de": "Sie fahren auf einer Landstraße. Wann müssen Sie Ihre Geschwindigkeit verringern?",
+        "en": "You are driving on a rural road. When must you reduce your speed?",
+        "zhHans": "在乡间道路上行驶，何时必须减速？"
+      },
+      "options": [
+        {
+          "text": {
+            "de": "Wenn eine unübersichtliche Kurve folgt.",
+            "en": "When an obscured curve is ahead.",
+            "zhHans": "当前方出现视线不佳的弯道。"
+          },
+          "isCorrect": true
+        },
+        {
+          "text": {
+            "de": "Nur bei Gegenverkehr.",
+            "en": "Only when there is oncoming traffic.",
+            "zhHans": "仅在有对向来车时。"
+          },
+          "isCorrect": false
+        },
+        {
+          "text": {
+            "de": "Wenn Sie auf eine engere Fahrbahn treffen.",
+            "en": "When the lane narrows ahead.",
+            "zhHans": "当前方车道变窄。"
+          },
+          "isCorrect": true
+        }
+      ],
+      "explanation": {
+        "headline": "谨慎减速",
+        "body": "遇到视线受限的弯道或车道变窄都需要提前减速，保持可控制速度。",
+        "tips": [
+          "视线受限=提前减速",
+          "注意限速标志"
+        ]
+      },
+      "metadata": {
+        "type": "multipleChoice",
+        "difficulty": 3,
+        "tags": ["speed", "safety"],
+        "lastUpdated": "2025-05-02T12:00:00Z"
+      }
+    }
+  ]
+}
