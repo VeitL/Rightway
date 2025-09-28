@@ -54,6 +54,11 @@
 	•	账号体系：Apple 登录 + 邮箱密码（可选 Google），后续可加微信登录（Web 端）；
 	•	云同步：题进度、SRS 队列、笔记、标注、设置实时同步；离线可用，上线即后台补写。
 
+5.5 通用设置
+	•	外观：支持跟随系统/浅色/深色主题切换；
+	•	学习偏好：可设定默认题目语言并选择是否总是显示中文翻译；
+	•	辅助功能：VoiceOver 辅助提示开关集中管理。
+
 6. 非功能需求
 	•	性能：刷题页面 <200ms 首次交互就绪；题组切换 <500ms；视频题缓冲 <1s（命中缓存）。
 	•	可靠性：99.9% 月可用性；断网可离线答题并队列同步。
@@ -65,6 +70,7 @@
 7.1 客户端
 	•	iOS / iPadOS：Swift 5.9+ / SwiftUI + Combine；本地缓存 Core Data（或 SQLite/GRDB）；BackgroundTasks 处理离线同步与增量更新；
 	•	UI 架构：MVVM + Feature Modules（Learning, Exam, Signs, Notes, Analytics）；
+	•	iOS 26 设计语言：统一使用 `RightwayDesignSystem`（玻璃材质卡片、动态渐变背景、统一角半径/阴影与信心按钮样式），学习/练车/笔记等主屏已落地并作为后续模块的样板；
 	•	Web：Next.js + React + TypeScript；SSR/ISR 提升文库与百科 SEO。
 7.2 后端与数据
 	•	后端：Supabase（PostgreSQL + Row Level Security + Realtime）或 Firebase（Firestore + Auth）；
@@ -193,7 +199,7 @@ Rightway (workspace)
 │ │ │ └─ ExamSheetView.swift
 │ │ └─ ViewModels/
 │ │ └─ ExamViewModel.swift
-│ ├─ Signs/ // 路标百科（自绘 SVG）
+│ ├─ Signs/ // 路标百科（本地 PNG 资源）
 │ │ ├─ Views/
 │ │ │ ├─ SignsHomeView.swift
 │ │ │ ├─ SignDetailView.swift
@@ -211,7 +217,10 @@ Rightway (workspace)
 │ ├─ SVG/
 │ │ ├─ 205_Vorfahrt_gewaehren.svg
 │ │ ├─ 206_Halt_Vorfahrt.svg
-│ │ └─ 301_Vorfahrtstrasse.svg
+│ ├─ TrafficSigns/ // 官方 VzKat 路标 PNG（示例）
+│ │ ├─ 101.png
+│ │ ├─ 205.png
+│ │ └─ …
 │ └─ Fonts/
 └─ Tests/
 ├─ Unit/
@@ -219,12 +228,20 @@ Rightway (workspace)
 2) SwiftPM 依赖（Package.swift 片段）
 	•	supabase-swift（或直接 REST/RPC）：Supabase 客户端。
 	•	SDWebImageSwiftUI（可选）：图像加载与缓存。
-	•	SwiftSVG（或自绘 Path）：渲染自绘 SVG 路标。
+	•	路标渲染：默认加载 `Resources/TrafficSigns/` 下的 1024px PNG；后续如需矢量，可切换 SwiftSVG 或自绘 Path。
+	•	路标数据：`traffic_signs_seed.json` 基于 VzKat 目录 + StVO 附录拉取，脚本会将 `roadsigns_de_bilingual.csv` 中的德文/中文“规定”“说明”写入 `regulation_de` / `regulation_zh` / `explanation_de` / `explanation_zh` 字段，供界面按需展示。
+	•	分类策略：按编号识别危险标志/优先权/指示/限制/信息/附加标志六大类，供筛选与对比高亮。
 	•	MarkdownUI：题目笔记的 Markdown 渲染。
 生产中如需最小依赖，可移除第三方 SVG，改用 SF Symbols + 自绘 Path。
 3) 同步策略（增量与冲突合并）
 	•	客户端保存 updated_at 与 device_write_id；以 LWW（Last-Write-Wins）为默认冲突策略，笔记字段支持“段落级合并”。
 	•	首次启动拉取：/delta?since=etag。成功后写入新 etag。
+	•	SupabaseSyncService 通过 SupabaseQuestionService / SupabaseNotesService / SupabaseProgressService 并行拉取题库、笔记与学习进度；网络失败或缺少密钥时会回退到 `Resources/Data/questions_authorized.json`、`notes_seed.json`、`progress_snapshot.json`。
+	•	NotesStore 现在由 CloudKitNotesAdapter 桥接到用户私有的 CloudKit 数据库：
+		- 容器 ID：`iCloud.com.rightway.app`（Signing & Capabilities 已启用 CloudKit，对应 `RightwayApp.entitlements`）。
+		- 启动时仅在 `CKContainer.accountStatus == .available` 时拉取远端快照；未登录 iCloud 时保持本地副本并记录提示日志。
+		- 新增笔记使用 `note.id` 作为 recordName（recordType = `UserNote`），字段包含分类/正文/引用 ID，附件数组经 JSON 编码后保存到 `Data` 字段，供多端解码使用。
+	•	NotesStore 同步完成后会将快照写入 Core Data (`CDUserNote`)，默认情况下即便未启用 iCloud 也会在本地持久化，保证离线可用。
 	•	离线队列：Core Data PendingOp 表（insert/update/delete），网络恢复后批量提交。
 4) QA 验收用例（Sprint 1）
 	•	学习页 500ms 内出现；中文层可显隐；选项点击给出反馈。
@@ -233,7 +250,7 @@ Rightway (workspace)
 5) 法务与合规落地（开发期必须落实）
 	•	与 TÜV|DEKRA arge tp 21 签订题库授权（题干/媒体/外语文本/UI 规范）。
 	•	中文解释明确为“学习层”，模拟考试严格使用官方语言与计分 UI。
-	•	路标图形均为自绘 SVG，并在百科页脚注明依据 StVO/VwV-StVO/VzKat。
+	•	路标图形采用官方 VzKat/Wikimedia 公共领域图像（PNG），在百科页脚注明依据 StVO/VwV-StVO/VzKat 及来源。
 
 
 
@@ -243,15 +260,132 @@ Rightway (workspace)
 练车记录模块扩展
 ------------------
 - 练车计时器：用户到驾校点击“开始计时”后，App 自动启动计时、路由采样与录音。
-- 定位追踪：接入 CoreLocation，定期记录经纬度路由点并写入 DrivingSessionStore。
+- 定位追踪：接入 CoreLocation，定期记录经纬度路由点并写入 DrivingSessionStore，并使用毫秒级时间戳保存实际采样时间。
+- 后台定位：Info.plist 启用 `UIBackgroundModes = { location, audio }`，`CoreLocationService` 默认请求 Always 权限并允许在熄屏时继续记录路线与音频。
 - 语音录制：使用 AVAudioRecorder（iOS）在练车期间录音，生成 M4A 文件并附加到练车笔记。
 - 练车报告：结束练车后自动生成练车记录（日期、时长、金额、路线点等），并自动标记第 N 次练车。
 - 行驶里程：根据 routeSamples 计算总距离，并在报告/历史卡片中展示，以便回顾练习强度。
 - 练车笔记：支持文字、图片、画板（占位）与音频附件，写入 NoteCategory.practice，出现在“练车笔记”分类。
 - 地图回放：DrivingSessionDetailView 中的地图支持展示所有轨迹点，以及以波形图标标注的音频锚点；点击锚点或列表项，可弹出带进度条/拖拽控制的音频播放器。
+- 时间轴联动：练车报告和路线详情页面共用同一条时间轴；底部音频滑块驱动地图游标，拖动或播放录音时路线实时回放，并在滑块下方的横向转写滚轮同步突出当前语音片段。
+- 报告 UI：历史报告以路线地图铺底，底部浮动录音条负责播放/拖动；语音转写结果以水平滚轮样式紧贴时间轴居中呈现，可左右滑动浏览全部片段，不再弹出覆盖地图的大面板。底部控制行从左到右依次为语音转写入口（紧凑图标）、播放按钮、时间轴滑杆，保持地图可视面积。右上角信息菜单汇总详情并提供视频 / 音频导出。
+- 语音转写操作：底部工具区提供“语音转文字”按钮，调用语音服务弹出多语言列表（中文/德语/英语等）；转写过程支持进度指示与失败提示，生成后的转写立即写入横向滚轮并在当前片段高亮显示。
+- 手动回放：即使未录音，也可以使用时间轴滑块回放路线，观察各个时间点的地图位置。
+- 地图浏览：练车报告中的路线卡片支持点击跳转至全屏地图，允许缩放、拖动并通过波形标记浏览每个录音片段。
+- 停留检测：DrivingSessionStore 自动聚合静止路段，记录停留开始时间、结束时间与平均坐标，并在练车报告中显示停留次数、总时长及单次详情。
+- 语音转写联动：练车报告中的音频锚点会直接在横向转写滚轮中展示摘要；点击地图波形锚点或滑动时间轴会自动滚动至对应片段并高亮，用户也可点击任何转写卡片快速跳转播放。
+- 历史管理：历史列表支持重命名练车记录（自定义名称、恢复默认）并删除记录；删除时同步移除关联语音文件与练车笔记，保持文档与存储一致。
+- 录音导出：任一含音频的练车记录都可直接导出录音（详情页浮层与历史列表右键菜单均提供分享入口），便于用户保存到本机或分享给教练。
+- 视频导出：生成的练车 MP4 叠加 muted standard 地图底图、完整路线灰轨与当前进度高亮轨迹，并在右下角叠加半透明 HUD（计时）。支持带/不带原始音频两档导出，iOS 端导出完成后自动写入系统相册并提示结果。
 - 音频锚点：录音开始时间与轨迹时间对齐，按 30s 采样生成 audioWaypoints（timestamp + timeOffset + 坐标），为后续语音转写与文字标注预留数据结构。
 - 媒体持久化：录音/图片在生成报告时迁移至 Documents/PracticeMedia 下，保证历史报告可回放；NoteAttachment 保留持久化 URL。
-- 待办：集成语音转文字服务（Speech.framework 或云转写），将 transcript 绑定到 audioWaypoints 后在地图上联动展示。
+- 语音转写：录音完成后调用 `DefaultEnhancedSpeechRecognitionService`（基于 Apple Speech.framework）按用户所选语言（目前支持 zh-CN、de-DE、en-US、en-GB、fr-FR、es-ES、ja-JP、ko-KR）生成全文本与分段时间戳；服务内部统一处理语音/麦克风授权、自动回退至英美英语识别器，并在授权失败或识别异常时记录日志提醒。
+
+习题来源（免费且合规方案）
+------------------------------
+原则
+^^^^
+- 不使用 / 不复制 arge tp 21 的官方题干、图片 / 动图、考试版式。
+- 以法律与官方公开规范（如 StVO / VwV-StVO / Verkehrszeichenkatalog (VzKat) 等“官署信息”）为知识来源，自行编写训练题与自制图形；在 App 中明确：中文仅为学习辅助，考试以官方语言为准。
+- 保持与“官方考试知识点”对齐，但不做原题镜像、不做一比一 UI 复刻。
+
+可用内容与不可用内容
+^^^^^^^^^^^^^^^^^^^^^^^^
+- 可用（免费 / 自制）：
+  - 法规条文与路标目录（StVO / VwV-StVO / VzKat）→ 建立规则 / 路标知识库。
+  - 我们自拟题干与选项、自写解析、自绘图形（SVG）与场景插图。
+- 不可用（需授权后再做）：
+  - 官方题干原文、官方配图 / 动图 / VR 场景、官方考试版式与图像“变体”。
+
+内容生产流程（避免侵权）
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+1. 选题设计（模板化）
+   - 围绕高频知识点建立题型模板：让行 / 优先权、限速与距离、转向与变道、特殊车辆优先、停车 / 临停、酒精与分值、环境与天气等。
+   - 每个模板定义：问法变体、数值范围、场景构件（车道 / 路标 / 相对位置）与可混淆点。
+2. 题干撰写（德 / 英主语言 + 中文对照）
+   - 全部原创；禁止逐字或“仅换词”式改写官方题。
+   - 数值、措辞、选项顺序与结构与官方不同；题面明确且简洁。
+   - 每题关联 law_refs（法规条款）与 / 或 sign_refs（路标 ID）。
+3. 媒体制作（自绘）
+   - 使用几何矢量风格（SVG）：车道、车辆、路口、光照 / 天气、路标（依据 VzKat 尺度重绘）。
+   - 图片选择题（image_pick）使用我们自制的多图选项，避免与官方画风 / 构图近似。
+4. 审校与相似度门禁
+   - 双人审校：题干准确性、可读性、与法规映射。
+   - 相似度检测：对自拟题与已知公开文本做模糊匹配（如 3-gram Jaccard / 余弦），阈值 ≤ 0.75；超出即重写。
+5. 版本化与更新
+   - QuestionSetVersion（例：2025.1、2025.2），每次发布生成差量包；学习记录保留映射。
+   - 关注法规调整 / 官方题型趋势（通常一年数次更新），对训练题进行知识点同步（不是逐题对齐）。
+
+数据模型（建议）
+^^^^^^^^^^^^^^^^
+```sql
+TABLE law_articles (
+  law_id TEXT PRIMARY KEY,      -- 如 STVO-8-1
+  source TEXT,                  -- StVO / VwV-StVO / VzKat
+  title TEXT,
+  section TEXT,                 -- 章节/条号
+  text_de TEXT,                 -- 德文摘录（简短+来源）
+  url TEXT                      -- 官方来源链接
+);
+
+TABLE traffic_signs (
+  sign_id TEXT PRIMARY KEY,     -- VZ-274-60（限速60）
+  name_de TEXT,
+  svg_path TEXT,                -- 自绘 SVG 路径
+  description_de TEXT,
+  law_refs TEXT                 -- 逗号分隔 law_id
+);
+
+TABLE training_items (
+  item_id TEXT PRIMARY KEY,
+  type TEXT CHECK(type IN ('single','multi','numeric','image_pick')),
+  stem_de TEXT, stem_en TEXT, stem_zh TEXT,        -- 自拟题面 + 中文对照
+  options JSON,                                    -- 选项数组（含多语）
+  answer JSON,                                     -- 正确选项/数值
+  media_refs JSON,                                 -- 本地自制图/多图
+  law_refs TEXT, sign_refs TEXT,                   -- 关联法规/路标
+  rationale_zh TEXT,                               -- 中文解析/陷阱
+  tags TEXT, difficulty INTEGER DEFAULT 2
+);
+
+- 客户端解析器允许 `law_refs` 与 `sign_refs` 以逗号分隔字符串或字符串数组形式提供，便于兼容历史种子数据。
+
+TABLE question_set_versions (
+  version TEXT PRIMARY KEY,     -- e.g., 2025.1
+  created_at TEXT, notes TEXT
+);
+```
+
+training_items 示例（JSON）
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+```json
+{
+  "item_id": "RW-PRIORITY-001",
+  "type": "single",
+  "stem_de": "An dieser Kreuzung: Wer hat Vorrang?",
+  "stem_en": "At this intersection: who has the right of way?",
+  "stem_zh": "在此路口：谁享有优先通行权？",
+  "options": [
+    {"id":"A","de":"Fahrzeug von rechts","en":"Vehicle from the right","zh":"右侧来车"},
+    {"id":"B","de":"Ich habe Vorrang","en":"I have priority","zh":"我有优先权"},
+    {"id":"C","de":"Straßenbahn","en":"Tram","zh":"有轨电车"}
+  ],
+  "answer": ["A"],
+  "media_refs": ["svg/intersection_T_no_signs.svg"],
+  "law_refs": "STVO-8-1",
+  "sign_refs": "",
+  "rationale_zh": "无优先/让行标志时，遵循“右侧优先”。若有轨电车优先条款需结合标志或特定情形判断。",
+  "tags": "priority,intersection,basic",
+  "difficulty": 1
+}
+```
+
+前后端协作要点
+^^^^^^^^^^^^^^
+- 内容与代码分离：法规 / 路标 / 题库以 JSON + SVG 存在 Data/Seed/，由 seed 脚本导入本地数据库（Core Data / Realm）。
+- 多语言层：德 / 英字段为“主”；中文为“辅助对照”，UI 可一键切换。
+- 离线包：首启导入基础包（法规、路标、题库种子）；后续走差量更新（根据 question_set_versions）。
+- 答案解释页：显示法规片段（短摘）+ 链接按钮跳转“法规全文 / 路标百科”。
 
 权限与安全
 -----------
@@ -259,6 +393,7 @@ Rightway (workspace)
   - NSLocationWhenInUseUsageDescription：允许记录练车路线。
   - NSMicrophoneUsageDescription：用于记录练车期间的语音。
 - iOS 首次使用定位或录音时会弹出权限对话框；未授权时开关会自动关闭。
+- Signing & Capabilities：启用 iCloud（CloudKit）并绑定容器 `iCloud.com.rightway.app`；`RightwayApp.entitlements` 已声明 CloudKit 权限，需在 Apple Developer Portal 同步创建容器。
 
 模块联动
 --------
